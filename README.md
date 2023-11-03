@@ -40,7 +40,7 @@ Before you begin, ensure you have the following installed on your system:
    dotnet run
    ```
 
-   The API will be accessible to test it with sagger at `https://localhost:7232` (or `http://localhost:5024`).
+   The API will be accessible to test it with swagger at `https://localhost:7232` (or `http://localhost:5024`).
 
 ## Contributing
 

@@ -15,6 +15,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IAdministrationService, AdministrationService>();
 builder.Services.AddScoped<IProvisioningService, ProvisioningService>();
 builder.Services.AddScoped<ICloudComputingProvider, MockedCloudComputingProvider>();
+builder.Services.AddScoped<IDataContext, DataContext>();
 builder.Services.AddDbContext<DataContext>();
 
 var app = builder.Build();

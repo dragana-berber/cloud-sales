@@ -95,11 +95,8 @@
 
         public bool ProvisionProduct(int productId, int productQty)
         {
-            // Find the product with the given productId in the available products list
-            Product product = _availableProducts.FirstOrDefault(p => p.Id == productId);
-
-            // If the product with the given productId is found and the available quantity is greater than or equal to the requested quantity
-            if (product != null && product.AvailableQuantity >= productQty)
+            // If the product with the given productId is found, mock response to true
+            if (_availableProducts.FirstOrDefault(p => p.Id == productId) != null)
             {
                 return true; // Provisioning successful
             }

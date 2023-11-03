@@ -9,16 +9,18 @@ namespace CloudSalesAPI.Services.ProvisioningService
     {
 
         private readonly ICloudComputingProvider _provider;
-        private readonly DataContext _context;
+        private readonly IDataContext _context;
+        private readonly ProductValidator _productValidator;
+
 
         private readonly IConfiguration _configuration;
-        public ProvisioningService(ICloudComputingProvider provider, DataContext context, IConfiguration configuration)
+        public ProvisioningService(ICloudComputingProvider provider, IDataContext context, IConfiguration configuration)
         {
             _provider = provider;
             _context = context;
             _configuration = configuration;
+            _productValidator = new ProductValidator(_provider.GetProducts());
         }
-
  
         public async Task<bool> CancelProductLicense(int accountId, int productId)
         {
@@ -28,7 +30,7 @@ namespace CloudSalesAPI.Services.ProvisioningService
             if (purchasedProduct != null)
             {
                 purchasedProduct.State = State.Suspended;
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(default);
                 return true;
             }
 
@@ -46,7 +48,7 @@ namespace CloudSalesAPI.Services.ProvisioningService
                 if (int.TryParse(billingMonthsString, out int billingMonths))
                 {
                     purchasedProduct.ValidToDate = purchasedProduct.ValidToDate.AddMonths(billingMonths);
-                    await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync(default);
                     return true;
                 }
                 else
@@ -64,7 +66,7 @@ namespace CloudSalesAPI.Services.ProvisioningService
             var purchasedProduct = _context.PurchasedProducts
                 .FirstOrDefault(pp => pp.CustomerAccountId == accountId && pp.ExternalId == productId && pp.State == State.Active);
 
-            if (purchasedProduct != null)
+            if (purchasedProduct != null && _productValidator.IsValidQuantity(productId, newQuantity))
             {
                 // Check with the cloud provider if there are enough available licenses
                 var availableProducts = _provider.GetProducts();
@@ -73,7 +75,7 @@ namespace CloudSalesAPI.Services.ProvisioningService
                 if (cloudProduct != null && cloudProduct.AvailableQuantity >= newQuantity)
                 {
                     purchasedProduct.Quantity = newQuantity;
-                    await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync(default);
                     return true;
                 }
             }
@@ -96,34 +98,42 @@ namespace CloudSalesAPI.Services.ProvisioningService
 
         public async Task<bool> PurchaseProduct(int accountId, int productId, int quantity)
         {
-            var success = _provider.ProvisionProduct(productId, quantity);
-            if (success) {
-                var productName = _provider.GetProducts().First(x => x.Id == productId).Name;
-                
-                DateTime validToDate;
-                var billingMonthsString = _configuration["BillingPeriodMonths"];
-                if (int.TryParse(billingMonthsString, out int billingMonths))
-                {
-                    validToDate = DateTime.Now.AddMonths(billingMonths);
-                }
-                else
-                {
-                    // Handle parsing error, the configuration value is not a valid integer
-                    // take default value 1 month
-                    validToDate = DateTime.Now.AddMonths(1);
-                }
+            var success = false;
 
-                await _context.PurchasedProducts.AddAsync(new PurchasedProduct
+            // validate quantity and product id
+            if (_productValidator.IsValidQuantity(productId, quantity))
+            {
+                // provision on ccp side
+                success = _provider.ProvisionProduct(productId, quantity);
+                if (success)
                 {
-                    CustomerAccountId = accountId,
-                    ExternalId = productId,
-                    Name = productName,
-                    Quantity = quantity,
-                    State = State.Active,
-                    ValidToDate = validToDate
-                });
-                await _context.SaveChangesAsync();
+                    var productName = _provider.GetProducts().First(x => x.Id == productId).Name;
 
+                    DateTime validToDate;
+                    var billingMonthsString = _configuration["BillingPeriodMonths"];
+                    if (int.TryParse(billingMonthsString, out int billingMonths))
+                    {
+                        validToDate = DateTime.Now.AddMonths(billingMonths);
+                    }
+                    else
+                    {
+                        // Handle parsing error, the configuration value is not a valid integer
+                        // take default value 1 month
+                        validToDate = DateTime.Now.AddMonths(1);
+                    }
+
+                    await _context.PurchasedProducts.AddAsync(new PurchasedProduct
+                    {
+                        CustomerAccountId = accountId,
+                        ExternalId = productId,
+                        Name = productName,
+                        Quantity = quantity,
+                        State = State.Active,
+                        ValidToDate = validToDate
+                    });
+                    await _context.SaveChangesAsync(default);
+
+                }
             }
             return success;
         }

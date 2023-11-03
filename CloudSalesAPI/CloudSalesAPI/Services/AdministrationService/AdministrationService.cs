@@ -4,9 +4,9 @@ namespace CloudSalesAPI.Services.AdministrationService
 {
     public class AdministrationService : IAdministrationService
     {
-        private readonly DataContext _context;
+        private readonly IDataContext _context;
 
-        public AdministrationService(DataContext context)
+        public AdministrationService(IDataContext context)
         {
             _context = context;
         }
@@ -21,7 +21,7 @@ namespace CloudSalesAPI.Services.AdministrationService
                 CustomerId = customerId,
                 AccountName = accountName
             });
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(default);
         }
 
         public async Task<int> CreateCustomer(string customerName)
@@ -30,7 +30,7 @@ namespace CloudSalesAPI.Services.AdministrationService
             {
                 Name = customerName
             });
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(default);
             return customer.Entity.Id;
         }
 
@@ -40,7 +40,7 @@ namespace CloudSalesAPI.Services.AdministrationService
             if (account != null)
             {
                 _context.CustomerAccounts.Remove(account);
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(default);
             }
         }
 
@@ -82,7 +82,7 @@ namespace CloudSalesAPI.Services.AdministrationService
             if (account != null)
             {
                 account.AccountName = newAccountName;
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(default);
             }
         }
     }
